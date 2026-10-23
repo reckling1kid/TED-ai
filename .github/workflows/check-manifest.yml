@@ -1,0 +1,36 @@
+
+name: Check Android Manifest
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate manifest XML
+        run: |
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          path = Path("app/src/main/AndroidManifest.xml")
+          print(f"Checking: {path.resolve()}")
+          print(f"File exists: {path.exists()}")
+
+          if not path.exists():
+              raise SystemExit("ERROR: Manifest file not found")
+
+          print(f"First 20 bytes: {path.read_bytes()[:20]!r}")
+          ET.parse(path)
+          print("SUCCESS: Manifest is valid XML")
+          PY
