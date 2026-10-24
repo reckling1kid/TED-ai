@@ -1,4 +1,3 @@
-
 name: Check Android Manifest
 
 on:
@@ -8,7 +7,7 @@ on:
       - main
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   check:
@@ -17,6 +16,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Remove blank lines before XML declaration
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("app/src/main/AndroidManifest.xml")
+          content = path.read_text(encoding="utf-8-sig")
+          content = content.lstrip()
+          path.write_text(content, encoding="utf-8")
+          print(repr(path.read_bytes()[:30]))
+          PY
+
       - name: Validate manifest XML
         run: |
           python3 - <<'PY'
@@ -24,13 +35,18 @@ jobs:
           from pathlib import Path
 
           path = Path("app/src/main/AndroidManifest.xml")
-          print(f"Checking: {path.resolve()}")
-          print(f"File exists: {path.exists()}")
-
-          if not path.exists():
-              raise SystemExit("ERROR: Manifest file not found")
-
-          print(f"First 20 bytes: {path.read_bytes()[:20]!r}")
           ET.parse(path)
           print("SUCCESS: Manifest is valid XML")
           PY
+
+      - name: Commit manifest correction
+        run: |
+          if ! git diff --quiet -- app/src/main/AndroidManifest.xml; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add app/src/main/AndroidManifest.xml
+            git commit -m "Fix Android manifest XML declaration"
+            git push
+          else
+            echo "No manifest changes needed"
+          fi
